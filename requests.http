@@ -1,0 +1,53 @@
+GET http://localhost:8000/api/
+
+###
+GET http://localhost:8000/api/rainer
+
+###
+GET http://localhost:8000/api/hello?name=rainer
+
+###
+GET http://localhost:8000/api/hello?name=rainer&salutation=Hi
+
+###
+GET http://localhost:8000/api/protected
+
+###
+GET http://localhost:8000/api/protected
+x-api-key: c2VjcmV0
+
+###
+GET http://localhost:8000/api/protected
+x-api-key: c2VjcmV
+
+###
+GET http://localhost:8000/api/login
+
+###
+GET http://localhost:8000/api/session
+
+###
+# @name newHero
+POST http://localhost:8000/api/heroes
+Content-Type: application/json
+
+{
+    "name": "Homelander",
+    "canFly": true
+}
+
+###
+POST http://localhost:8000/api/heroes
+Content-Type: application/json
+
+{
+    "nae": "Homelander",
+    "canFly": true
+}
+
+###
+@addedHeroId={{newHero.response.body.$.id}}
+GET http://localhost:8000/api/heroes/{{addedHeroId}}
+
+###
+GET http://localhost:8000/api/heroes

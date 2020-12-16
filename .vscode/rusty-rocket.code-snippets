@@ -1,0 +1,247 @@
+{
+	"010-rocket-dependency": {
+		"prefix": "rust",
+		"body": [
+			"# Rocket create in v0.4 requires Rust nightly build.",
+			"# Will change with 0.5 (see also https://github.com/SergioBenitez/Rocket/issues/19)",
+			"rocket = \"0.4.6\""
+		],
+		"description": "Add dependency to rocket (Git because compile with Rust stable)"
+	},
+	"015-rocket-git": {
+		"prefix": "rust",
+		"body": [
+			"# Rocket built from main already runs with stable",
+			"rocket = { git = \"https://github.com/SergioBenitez/Rocket\", branch = \"master\" }"
+		],
+		"description": "Add dependency to rocket (Git because compile with Rust stable)"
+	},
+	"020-rocket-use": {
+		"prefix": "rust",
+		"body": [
+			"use rocket::{get, launch, routes};"
+		],
+		"description": "Add use statement for Rust"
+	},
+	"025-basic-get": {
+		"prefix": "rust",
+		"body": [
+			"// We can return basic data types like numbers, strings, Option, Result",
+			"// because Rocket contains ready-made implementation of the `Responder` trait",
+			"// for them. For our own types, we could implement custom responders.",
+			"//    (see https://rocket.rs/v0.4/guide/responses/#implementations)",
+			"#[get(\"/\")]",
+			"fn hello_world() -> &'static str {",
+			"    \"Hello, world!\"",
+			"}"
+		]
+	},
+	"030-basic-launch": {
+		"prefix": "rust",
+		"body": [
+			"// Will generate (async) main function for us",
+			"#[launch]",
+			"fn rocket() -> rocket::Rocket {",
+			"    rocket::ignite().mount(\"/api\", routes![hello_world])",
+			"}"
+		]
+	},
+	"035-annotate-test-module": {
+		"prefix": "rust",
+		"body": [
+			"#[cfg(test)] mod tests;"
+		]
+	},
+	"040-basic-test": {
+		"prefix": "rust",
+		"body": [
+			"use rocket::local::blocking::Client;",
+			"",
+			"#[test]",
+			"fn test_hello_world() {",
+			"    let client = Client::tracked(super::rocket()).unwrap();",
+			"    let response = client.get(\"/api\").dispatch();",
+			"    assert_eq!(response.into_string(), Some(\"Hello, world!\".into()));",
+			"}"
+		]
+	},
+	"045-dynamic-path": {
+		"prefix": "rust",
+		"body": [
+			"// Dynamic paths",
+			"// You can use any type that implements the `FromParam` trait",
+			"//    (see also https://api.rocket.rs/v0.4/rocket/request/trait.FromParam.html)",
+			"// Use `RawStr` to get unsanitized, unvalidated, and undecoded raw string from HTTP message",
+			"//    (see also https://api.rocket.rs/v0.4/rocket/http/struct.RawStr.html)",
+			"// Rust considers parameter types during routing",
+			"//    (see also https://rocket.rs/v0.4/guide/requests/#dynamic-paths)",
+			"#[get(\"/<name>\")]",
+			"fn greeting(name: String) -> String {",
+			"    format!(\"Hello {}\", name)",
+			"}"
+		]
+	},
+	"050-dynamic-path-test": {
+		"prefix": "rust",
+		"body": [
+			"#[test]",
+			"fn test_greeting() {",
+			"    let client = Client::tracked(super::rocket()).unwrap();",
+			"    let response = client.get(\"/api/rainer\").dispatch();",
+			"    assert_eq!(response.into_string(), Some(\"Hello rainer\".into()));",
+			"}"
+		]
+	},
+	"055-query-string-params": {
+		"prefix": "rust",
+		"body": [
+			"// Query string params",
+			"// You can use any type that implements the `FromParam` trait",
+			"//    (see also https://api.rocket.rs/v0.4/rocket/request/trait.FromFormValue.html)",
+			"// Note optional parameters",
+			"// For more details see https://rocket.rs/v0.4/guide/requests/#query-strings",
+			"#[get(\"/hello?<name>&<salutation>\")]",
+			"fn query_greeting(name: String, salutation: Option<String>) -> String {",
+			"    match salutation {",
+			"        Some(s) => format!(\"{} {}\", s, name),",
+			"        None => format!(\"Hello {}\", name)",
+			"    }",
+			"}"
+		]
+	},
+	"060-query-string-tests": {
+		"prefix": "rust",
+		"body": [
+			"#[test]",
+			"fn test_querystring_without_salutation() {",
+			"    let client = Client::tracked(super::rocket()).unwrap();",
+			"    let response = client.get(\"/api/hello?name=rainer\").dispatch();",
+			"    assert_eq!(response.into_string(), Some(\"Hello rainer\".into()));",
+			"}",
+			"",
+			"#[test]",
+			"fn test_querystring_with_salutation() {",
+			"    let client = Client::tracked(super::rocket()).unwrap();",
+			"    let response = client.get(\"/api/hello?name=rainer&salutation=Hi\").dispatch();",
+			"    assert_eq!(response.into_string(), Some(\"Hi rainer\".into()));",
+			"}"
+		]
+	},
+	"065-custom-request-guard": {
+		"prefix": "rust",
+		"body": [
+			"use base64;",
+			"use rocket::{http::Status, request, request::FromRequest, request::Outcome, Request};",
+			"use std::str;",
+			"",
+			"// Implement a custom request guard checking for the existance of an API key in request header",
+			"// More about request guards at https://rocket.rs/v0.4/guide/requests/#request-guards",
+			"",
+			"#[derive(Debug)]",
+			"pub struct ApiKey(pub String);",
+			"",
+			"#[derive(Debug)]",
+			"pub enum ApiKeyError {",
+			"    MissingKey,",
+			"    InvalidKey,",
+			"}",
+			"",
+			"// We have to implement `FromRequest` trait for `ApiKey`",
+			"//    (see also https://api.rocket.rs/v0.4/rocket/request/trait.FromRequest.html)",
+			"#[rocket::async_trait]",
+			"impl<'a, 'r> FromRequest<'a, 'r> for ApiKey {",
+			"    type Error = ApiKeyError;",
+			"",
+			"    async fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {",
+			"        // Check if API key is present in header",
+			"        match request.headers().get_one(\"x-api-key\") {",
+			"            // Try to decode base64 API key",
+			"            Some(s) => match base64::decode(s) {",
+			"                    // We do not really check key here. If it is valid base64, we are ok with it.",
+			"                    Ok(decoded_key) => Outcome::Success(ApiKey(str::from_utf8(&decoded_key).unwrap().to_owned())),",
+			"                    Err(_) => Outcome::Failure((Status::Unauthorized, ApiKeyError::InvalidKey)),",
+			"            },",
+			"            None => Outcome::Failure((Status::Unauthorized, ApiKeyError::MissingKey)),",
+			"        }",
+			"    }",
+			"}"
+		]
+	},
+	"070-route-with-guard": {
+		"prefix": "rust",
+		"body": [
+			"//use rocket::{get, launch, routes,};",
+			"// use std::str;",
+			"//mod api_key;",
+			"",
+			"// Request guard",
+			"#[get(\"/protected\")]",
+			"fn protected(key: api_key::ApiKey) -> String {",
+			"    format!(\"You are allowed to access this API because you presented key '{}'\", key.0)",
+			"}"
+		]
+	},
+	"075-tests-guarded-route": {
+		"prefix": "rust",
+		"body": [
+			"// use rocket::{local::blocking::Client, http::{Status, Header,},};",
+			"// use base64;",
+			"",
+			"#[test]",
+			"fn test_protected_without_key() {",
+			"    let client = Client::tracked(super::rocket()).unwrap();",
+			"    let response = client.get(\"/api/protected\").dispatch();",
+			"    assert_eq!(response.status(), Status::Unauthorized);",
+			"}",
+			"",
+			"#[test]",
+			"fn test_protected_with_invalid_key() {",
+			"    let client = Client::tracked(super::rocket()).unwrap();",
+			"    let response = client.get(\"/api/protected\")",
+			"        .header(Header::new(\"x-api-key\", \"c2VjcmV\"))",
+			"        .dispatch();",
+			"    assert_eq!(response.status(), Status::Unauthorized);",
+			"}",
+			"",
+			"#[test]",
+			"fn test_protected_with_key() {",
+			"    let client = Client::tracked(super::rocket()).unwrap();",
+			"    let response = client.get(\"/api/protected\")",
+			"        .header(Header::new(\"x-api-key\", base64::encode(\"secret\")))",
+			"        .dispatch();",
+			"    assert_eq!(response.status(), Status::Ok);",
+			"}"
+		]
+	},
+	"080-cookie-guard": {
+		"prefix": "rust",
+		"body": [
+			"// use rocket::{get, launch, routes, http::{Cookie,CookieJar,}};",
+			"// Cookie request guard. There are also private (=encrypted) cookies.",
+			"//    (see https://rocket.rs/v0.4/guide/requests/#cookies)",
+			"#[get(\"/login\")]",
+			"fn login(cookies: &CookieJar) {",
+			"    cookies.add(Cookie::new(\"Session\", base64::encode(\"this_is_a_session_key\")));",
+			"}",
+			"",
+			"#[get(\"/session\")]",
+			"fn session(cookies: &CookieJar) -> &'static str {",
+			"    match cookies.get(\"Session\") {",
+			"        Some(_) => \"You got the cookie!\",",
+			"        None => \"Sorry, no cookie!\",",
+			"    }",
+			"}"
+		]
+	},
+	"085-cookie-test": {
+		"prefix": "rust",
+		"body": [
+			"#[test]",
+			"fn test_set_cookie() {",
+			"    let client = Client::tracked(super::rocket()).unwrap();",
+			"    let response = client.get(\"/api/login\").dispatch();",
+			"    assert!(response.cookies().get(\"Session\").is_some())",
+			"}"
+		]
+	}
+}
