@@ -91,9 +91,7 @@
 			"use base64;",
 			"//endregion",
 			"",
-			"// region Test for Basic GET Request",
-			"use rocket::local::blocking::Client;",
-			"",
+			"// region Basic GET",
 			"#[test]",
 			"fn test_hello_world() {",
 			"    let client = Client::tracked(super::rocket()).unwrap();",
@@ -174,10 +172,6 @@
 	"065-custom-request-guard": {
 		"prefix": "rust",
 		"body": [
-			"use base64;",
-			"use rocket::{http::Status, request, request::FromRequest, request::Outcome, Request};",
-			"use std::str;",
-			"",
 			"// Implement a custom request guard checking for the existance of an API key in request header",
 			"// More about request guards at https://rocket.rs/v0.4/guide/requests/#request-guards",
 			"",
@@ -415,7 +409,7 @@
 		]
 	},
 	"126-register-catcher": {
-		"prefix": "",
+		"prefix": "rust",
 		"body": [
 			"        // Register catchers for errors.",
 			"        //    (see https://rocket.rs/v0.4/guide/requests/#error-catchers)",
