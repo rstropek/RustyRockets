@@ -2,6 +2,8 @@
 
 ## Description
 
+![Hero Image](rusty-rockets.png)
+
 This repository contains a sample that I used to do an introduction talk about *Building Web APIs with Rust and Rocket* at the [Rust Linz](https://rust-linz.at) meetup.
 
 # Storyboard
