@@ -1,27 +1,30 @@
+// region use
+#![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 use reqwest;
 use rocket::{
     catch, catchers,
     fairing::{Fairing, Info, Kind},
     get,
-    http::{Cookie, CookieJar,},
+    http::{Cookie, CookieJar},
     launch, post,
     response::status::Created,
     routes, uri, Data, Request, State,
 };
 use rocket_contrib::{
     json,
-    json::{Json, JsonValue},
+    json::{Json, JsonValue,},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::RwLock;
+// endregion
 
-mod api_key;
 #[cfg(test)]
 mod tests;
 
+// region Basic GET Request
 // We can return basic data types like numbers, strings, Option, Result
 // because Rocket contains ready-made implementation of the `Responder` trait
 // for them. For our own types, we could implement custom responders.
@@ -30,18 +33,22 @@ mod tests;
 fn hello_world() -> &'static str {
     "Hello, world!"
 }
+// endregion
 
-// Dynamic paths
+// region Dynamic paths
 // You can use any type that implements the `FromParam` trait
 //    (see also https://api.rocket.rs/v0.4/rocket/request/trait.FromParam.html)
 // Use `RawStr` to get unsanitized, unvalidated, and undecoded raw string from HTTP message
 //    (see also https://api.rocket.rs/v0.4/rocket/http/struct.RawStr.html)
+// Rust considers parameter types during routing
+//    (see also https://rocket.rs/v0.4/guide/requests/#dynamic-paths)
 #[get("/<name>")]
 fn greeting(name: String) -> String {
     format!("Hello {}", name)
 }
+// endregion
 
-// Query string params
+// region Query string params
 // You can use any type that implements the `FromParam` trait
 //    (see also https://api.rocket.rs/v0.4/rocket/request/trait.FromFormValue.html)
 // Note optional parameters
@@ -50,26 +57,28 @@ fn greeting(name: String) -> String {
 fn query_greeting(name: String, salutation: Option<String>) -> String {
     match salutation {
         Some(s) => format!("{} {}", s, name),
-        None => format!("Hello {}", name),
+        None => format!("Hello {}", name)
     }
 }
+// endregion
+
+// region Request guard
+mod api_key;
 
 // Request guard
 #[get("/protected")]
 fn protected(key: api_key::ApiKey) -> String {
-    format!(
-        "You are allowed to access this API because you presented key '{}'",
-        key.0
-    )
+    format!("You are allowed to access this API because you presented key '{}'", key.0)
 }
+// endregion
 
-// Cookie request guard
+// region Cookie guard
+// use rocket::{get, launch, routes, http::{Cookie,CookieJar,}};
+// Cookie request guard. There are also private (=encrypted) cookies.
+//    (see https://rocket.rs/v0.4/guide/requests/#cookies)
 #[get("/login")]
 fn login(cookies: &CookieJar) {
-    cookies.add(Cookie::new(
-        "Session",
-        base64::encode("this_is_a_session_key"),
-    ));
+    cookies.add(Cookie::new("Session", base64::encode("this_is_a_session_key")));
 }
 
 #[get("/session")]
@@ -79,7 +88,9 @@ fn session(cookies: &CookieJar) -> &'static str {
         None => "Sorry, no cookie!",
     }
 }
+// endregion
 
+// region Simple REST API
 type ID = usize;
 
 // Rocket uses Serde for serializing/deserializing data.
@@ -149,7 +160,9 @@ fn get_all(heroes_state: State<'_, HeroesMap>) -> Json<Vec<Hero>> {
     let heroes = heroes_state.read().unwrap();
     Json(heroes.values().map(|v| v.clone()).collect())
 }
+// endregion
 
+// region Catcher for 404
 // Catcher for 404 errors
 //    (see https://rocket.rs/v0.4/guide/requests/#error-catchers)
 #[catch(404)]
@@ -159,7 +172,9 @@ fn not_found() -> JsonValue {
         "reason": "Resource was not found."
     })
 }
+// endregion
 
+// region Log Fairing
 // Add a structure for event log entries
 #[derive(Serialize, Debug)]
 struct LogEvent {
@@ -203,6 +218,7 @@ impl Fairing for LogTarget {
             .unwrap();
     }
 }
+// endregion
 
 // Will generate (async) main function for us
 #[launch]
@@ -219,7 +235,7 @@ fn rocket() -> rocket::Rocket {
                 session,
                 add_hero,
                 get_hero,
-                get_all
+                get_all,
             ],
         )
         // Add managed state. Here we use global state. Request-local state
