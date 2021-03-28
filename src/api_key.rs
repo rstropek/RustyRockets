@@ -17,10 +17,10 @@ pub enum ApiKeyError {
 // We have to implement `FromRequest` trait for `ApiKey`
 //    (see also https://api.rocket.rs/v0.4/rocket/request/trait.FromRequest.html)
 #[rocket::async_trait]
-impl<'a, 'r> FromRequest<'a, 'r> for ApiKey {
+impl<'r> FromRequest<'r> for ApiKey {
     type Error = ApiKeyError;
 
-    async fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
+    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         // Check if API key is present in header
         match request.headers().get_one("x-api-key") {
             // Try to decode base64 API key

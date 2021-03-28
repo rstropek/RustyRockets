@@ -207,7 +207,7 @@ impl Fairing for LogTarget {
         let event = LogEvent {
             timestamp: chrono::Utc::now(),
             message_template: "Request to {path}",
-            path: request.uri().path().to_owned(),
+            path: request.uri().path().to_owned().to_string(),
         };
         let client = reqwest::Client::new();
         client
