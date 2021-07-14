@@ -162,18 +162,7 @@ fn not_found() -> Html<&'static str> {
 }
 // endregion
 
-// region Log Fairing
-// Add a structure for event log entries
-#[derive(Serialize, Debug)]
-struct LogEvent {
-    #[serde(rename(serialize = "@t"))]
-    timestamp: chrono::DateTime<chrono::Utc>,
-    #[serde(rename(serialize = "@mt"))]
-    message_template: &'static str,
-    #[serde(rename(serialize = "path"))]
-    path: String,
-}
-
+// region Count Fairing
 // Implement a fairing that counts all requests
 //    (more about fairings at https://rocket.rs/v0.4/guide/fairings/#fairings)
 #[derive(Default, Clone)]
