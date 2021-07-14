@@ -1,21 +1,9 @@
 // region use
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 use reqwest;
-use rocket::{
-    catch, catchers,
-    fairing::{Fairing, Info, Kind},
-    get,
-    http::{Cookie, CookieJar},
-    launch, post,
-    response::status::Created,
-    routes, uri, Data, Request, State,
-};
-use rocket_contrib::{
-    json,
-    json::{Json, JsonValue,},
-};
+use rocket::{Build, Data, Request, Rocket, State, catch, catchers, fairing::{self, Fairing, Info, Kind}, get, http::{Cookie, CookieJar, Method}, launch, post, response::{content::Html, status::Created}, routes, serde::json::Json, uri};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use std::str;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::RwLock;
@@ -125,8 +113,8 @@ type HeroesMap = RwLock<HashMap<ID, Hero>>;
 #[post("/heroes", format = "json", data = "<hero>")]
 fn add_hero(
     hero: Json<NewHero>,
-    heroes_state: State<'_, HeroesMap>,
-    hero_count: State<'_, HeroCount>,
+    heroes_state: &State<HeroesMap>,
+    hero_count: &State<HeroCount>,
 ) -> Created<Json<Hero>> {
     // Generate unique hero ID
     let hid = hero_count.0.fetch_add(1, Ordering::Relaxed);
@@ -144,19 +132,19 @@ fn add_hero(
 
     // Use uri macro to generate location header
     //    (see https://rocket.rs/v0.4/guide/responses/#typed-uris)
-    let location = uri!("/api", get_hero: hid);
+    let location = uri!("/api", get_hero(hid));
     Created::new(location.to_string()).body(Json(new_hero))
 }
 
 // Note that we return `Option`. `None` would result in 404 (not found).
 #[get("/heroes/<id>")]
-fn get_hero(id: ID, heroes_state: State<'_, HeroesMap>) -> Option<Json<Hero>> {
+fn get_hero(id: ID, heroes_state: &State<HeroesMap>) -> Option<Json<Hero>> {
     let heroes = heroes_state.read().unwrap();
     heroes.get(&id).map(|h| Json(h.clone()))
 }
 
 #[get("/heroes")]
-fn get_all(heroes_state: State<'_, HeroesMap>) -> Json<Vec<Hero>> {
+fn get_all(heroes_state: &State<HeroesMap>) -> Json<Vec<Hero>> {
     let heroes = heroes_state.read().unwrap();
     Json(heroes.values().map(|v| v.clone()).collect())
 }
@@ -166,11 +154,11 @@ fn get_all(heroes_state: State<'_, HeroesMap>) -> Json<Vec<Hero>> {
 // Catcher for 404 errors
 //    (see https://rocket.rs/v0.4/guide/requests/#error-catchers)
 #[catch(404)]
-fn not_found() -> JsonValue {
-    json!({
-        "status": "error",
-        "reason": "Resource was not found."
-    })
+fn not_found() -> Html<&'static str> {
+    Html(r#"
+        <h1>Not found</h1>
+        <p>What are you looking for?</p>
+    "#)
 }
 // endregion
 
@@ -186,44 +174,48 @@ struct LogEvent {
     path: String,
 }
 
-// Implement a fairing that sends a log entry for each incoming request
-// to a central logging system (here: Seq)
+// Implement a fairing that counts all requests
 //    (more about fairings at https://rocket.rs/v0.4/guide/fairings/#fairings)
-struct LogTarget;
+#[derive(Default, Clone)]
+struct Counter {
+    get: Arc<AtomicUsize>,
+    post: Arc<AtomicUsize>,
+}
 
 #[rocket::async_trait]
-impl Fairing for LogTarget {
+impl Fairing for Counter {
     fn info(&self) -> Info {
         Info {
-            name: "Log to Seq",
-            kind: Kind::Request,
+            name: "GET/POST Counter",
+            kind: Kind::Ignite | Kind::Request
         }
     }
 
-    async fn on_request(&self, request: &mut Request<'_>, _: &mut Data) {
-        // Implement a rather naive middleware that sends a log entry
-        // to Seq on every request. In practice, you would probably batch
-        // sending of log entries.
-        let event = LogEvent {
-            timestamp: chrono::Utc::now(),
-            message_template: "Request to {path}",
-            path: request.uri().path().to_owned().to_string(),
-        };
-        let client = reqwest::Client::new();
-        client
-            .post("http://192.168.1.7:5341/api/events/raw?clef")
-            .json(&event)
-            .send()
-            .await
-            .unwrap();
+    async fn on_ignite(&self, rocket: Rocket<Build>) -> fairing::Result {
+        #[get("/api/counts")]
+        fn counts(counts: &State<Counter>) -> String {
+            let get_count = counts.get.load(Ordering::Relaxed);
+            let post_count = counts.post.load(Ordering::Relaxed);
+            format!("Get: {}\nPost: {}", get_count, post_count)
+        }
+
+        Ok(rocket.manage(self.clone()).mount("/", routes![counts]))
+    }
+
+    async fn on_request(&self, request: &mut Request<'_>, _: &mut Data<'_>) {
+        if request.method() == Method::Get {
+            self.get.fetch_add(1, Ordering::Relaxed);
+        } else if request.method() == Method::Post {
+            self.post.fetch_add(1, Ordering::Relaxed);
+        }
     }
 }
 // endregion
 
 // Will generate (async) main function for us
 #[launch]
-fn rocket() -> rocket::Rocket {
-    rocket::ignite()
+fn rocket() -> _ {
+    rocket::build()
         .mount(
             "/api",
             routes![
@@ -245,6 +237,6 @@ fn rocket() -> rocket::Rocket {
         .manage(HeroCount(AtomicUsize::new(1)))
         // Register catchers for errors.
         //    (see https://rocket.rs/v0.4/guide/requests/#error-catchers)
-        .register(catchers![not_found])
-        .attach(LogTarget {})
+        .register("/", catchers![not_found])
+        .attach(Counter::default())
 }
