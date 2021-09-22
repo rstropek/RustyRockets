@@ -83,6 +83,7 @@ cp -R ../rusty-rocket/requests.http .
   * Snippet *100-hero-api-structs-types*
   * Snippet *105-in-memory-repository*
   * Snippet *110-add-hero-with-post*
+  * Snippet *111-add-managed-hashmap*
   * Snippet *115-get-single-hero*
   * Snippet *120-get-all-heroes*
 * Add `add_hero`, `get_hero`, and `get_all` to mounts
@@ -99,5 +100,5 @@ cp -R ../rusty-rocket/requests.http .
 
 * Snippet *130-log-fairing*
 * Snippet *135-attach-fairing*
-* Demo request
-* Show *Seq*
+* Execute some demo requests (GET and POST)
+* Show counter with demo request
