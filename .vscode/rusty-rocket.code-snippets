@@ -161,6 +161,10 @@
 	"065-custom-request-guard": {
 		"prefix": "rust",
 		"body": [
+			"use base64;",
+			"use rocket::{http::Status, request, request::FromRequest, request::Outcome, Request};",
+			"use std::str;",
+			"",
 			"// Implement a custom request guard checking for the existance of an API key in request header",
 			"// More about request guards at https://rocket.rs/v0.4/guide/requests/#request-guards",
 			"",
