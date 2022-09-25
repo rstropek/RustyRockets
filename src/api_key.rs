@@ -1,4 +1,3 @@
-use base64;
 use rocket::{http::Status, request, request::FromRequest, request::Outcome, Request};
 use std::str;
 

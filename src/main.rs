@@ -1,7 +1,6 @@
 // region use
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
-use reqwest;
-use rocket::{Build, Data, Request, Rocket, State, catch, catchers, fairing::{self, Fairing, Info, Kind}, get, http::{Cookie, CookieJar, Method}, launch, post, response::{content::Html, status::Created}, routes, serde::json::Json, uri};
+use rocket::{Build, Data, Request, Rocket, State, catch, catchers, fairing::{self, Fairing, Info, Kind}, get, http::{Cookie, CookieJar, Method}, launch, post, response::{status::Created}, routes, serde::json::Json, uri};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use std::str;
@@ -146,7 +145,7 @@ fn get_hero(id: ID, heroes_state: &State<HeroesMap>) -> Option<Json<Hero>> {
 #[get("/heroes")]
 fn get_all(heroes_state: &State<HeroesMap>) -> Json<Vec<Hero>> {
     let heroes = heroes_state.read().unwrap();
-    Json(heroes.values().map(|v| v.clone()).collect())
+    Json(heroes.values().cloned().collect())
 }
 // endregion
 
@@ -154,11 +153,8 @@ fn get_all(heroes_state: &State<HeroesMap>) -> Json<Vec<Hero>> {
 // Catcher for 404 errors
 //    (see https://rocket.rs/v0.4/guide/requests/#error-catchers)
 #[catch(404)]
-fn not_found() -> Html<&'static str> {
-    Html(r#"
-        <h1>Not found</h1>
-        <p>What are you looking for?</p>
-    "#)
+fn not_found(req: &Request) -> String {
+    format!("Sorry, '{}' is not a valid path.", req.uri())
 }
 // endregion
 
